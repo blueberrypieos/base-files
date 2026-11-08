@@ -1,0 +1,19 @@
+Source: base-files
+Section: admin
+Priority: optional
+Maintainer: Maxwell <maxwell@blueberrypieos.com>
+Build-Depends: pietoolchain (>= 0.1.0)
+Standards-Version: 4.7.3
+Homepage: https://github.com/blueberrypieos/base-files
+Vcs-Git: https://github.com/blueberrypieos/base-files.git
+Vcs-Browser: https://github.com/blueberrypieos/base-files
+Rules-Requires-Root: no
+
+Package: base-files
+Architecture: darwin-arm64
+Essential: yes
+Priority: required
+Description: root layout, /etc defaults and licence texts
+ The root's directories. /etc, /tmp and /var are links into /private.
+ The defaults in /etc. init runs /etc/rc at boot.
+ The texts of the longer licences, in /usr/share/common-licenses.

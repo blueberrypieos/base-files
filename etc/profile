@@ -1,0 +1,14 @@
+PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+export PATH
+
+if [ "$(id -u)" = 0 ]; then
+	PS1="$(hostname -s):\w # "
+else
+	PS1="$(hostname -s):\w \$ "
+fi
+export PS1
+
+# bash reads /etc/bashrc.
+if [ -n "${BASH+set}" ] && [ -r /etc/bashrc ]; then
+	. /etc/bashrc
+fi

@@ -1,0 +1,38 @@
+#!/usr/bin/make -f
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Blueberry Pie OS Authors
+
+SOURCE_DATE_EPOCH ?= $(shell dpkg-parsechangelog -STimestamp)
+D := $(CURDIR)/debian/base-files
+DIRS := dev sbin bin cores Volumes private private/etc private/tmp private/var \
+	private/var/tmp private/var/log private/var/run private/var/root \
+	private/var/empty private/var/folders private/var/folders/zz Users
+STICKY := private/tmp private/var/tmp private/var/folders/zz
+
+build build-arch build-indep:
+
+binary: binary-arch binary-indep
+binary-indep:
+binary-arch:
+	rm -rf $(D)
+	install -d -m 755 $(D) $(D)/usr $(D)/usr/share $(D)/usr/share/common-licenses
+	set -e; for x in $(DIRS); do install -d -m 755 $(D)/$$x; done
+	chmod 1777 $(addprefix $(D)/,$(STICKY))
+	ln -s private/etc $(D)/etc
+	ln -s private/tmp $(D)/tmp
+	ln -s private/var $(D)/var
+	install -m 644 etc/* $(D)/private/etc/
+	chmod 600 $(D)/private/etc/master.passwd
+	find licenses -maxdepth 1 -type f ! -name README -exec install -m 644 {} $(D)/usr/share/common-licenses/ \;
+	install -D -m 644 debian/copyright $(D)/usr/share/doc/base-files/copyright
+	mkdir -p $(D)/DEBIAN
+	cd $(D) && find private/etc -type f -printf '/%p\n' | sort > DEBIAN/conffiles
+	cd $(D) && find . -path ./DEBIAN -prune -o -type f -printf '%P\0' | sort -z | xargs -0 md5sum > DEBIAN/md5sums
+	dpkg-gencontrol -pbase-files -P$(D)
+	find $(D) -exec touch -h -d @$(SOURCE_DATE_EPOCH) {} +
+	dpkg-deb --root-owner-group -Zxz --build $(D) ..
+
+clean:
+	rm -rf $(D) debian/files debian/*.substvars
+
+.PHONY: build build-arch build-indep binary binary-arch binary-indep clean

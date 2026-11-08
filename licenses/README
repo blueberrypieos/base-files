@@ -1,0 +1,27 @@
+SPDX-License-Identifier: BSD-2-Clause
+Copyright (c) 2026 The Blueberry Pie OS Authors
+
+These are the texts of common licences. Each file is named by its SPDX
+identifier. LLVM-exception is a licence exception.
+
+base-files installs every file here but this README in
+/usr/share/common-licenses.
+
+Each text is a verbatim copy:
+- GPL, LGPL and GFDL: the FSF's, from https://ftp.gnu.org/gnu/Licenses/.
+- MPL-1.1 and MPL-2.0: Mozilla's, from
+  https://www.mozilla.org/media/MPL/1.1/index.txt and
+  https://www.mozilla.org/media/MPL/2.0/index.txt.
+- OFL-1.1: SIL's, from https://openfontlicense.org/documents/OFL.txt.
+- Apache-2.0: the ASF's, from https://www.apache.org/licenses/LICENSE-2.0.txt.
+- Artistic-1.0-Perl: Perl's Artistic file, at tag v5.40.0 of
+  https://github.com/Perl/perl5.
+- APSL-2.0: xnu's APPLE_LICENSE.
+- APSL-1.0, APSL-1.1 and APSL-1.2: the APPLE_LICENSE files of system_cmds-336,
+  IOSerialFamily-93.200.2 and hfs-191.
+- LLVM-exception: lines 208-222 of llvm-project's LICENSE.TXT.
+- CC0-1.0 and CC-BY-3.0: Creative Commons', from
+  https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt and
+  https://creativecommons.org/licenses/by/3.0/legalcode.txt.
+- The others: text/<id>.txt of https://github.com/spdx/license-list-data
+  at tag v3.29.0.

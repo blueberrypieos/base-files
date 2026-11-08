@@ -1,0 +1,5 @@
+# The login shells chpass(1) accepts.
+
+/bin/sh
+/bin/zsh
+/bin/bash

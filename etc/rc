@@ -1,0 +1,241 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Blueberry Pie OS Authors
+#
+# /etc/rc: run by init at boot, before the console shell starts.
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+if [ -r /etc/hostname ]; then
+	hostname "$(cat /etc/hostname)"
+fi
+
+mkdir -p /var/run /var/log /var/tmp /var/root
+rm -rf /var/run/* /tmp/* 2>/dev/null
+
+# The previous boot's panic log, if it panicked (the panic region keeps it
+# across the reset, the kernel copies it out: kern.previous_panic), first
+# of all, in case this boot panics too: as /var/log/panic-N-TIME.panic,
+# root's only, as the sysctl is (kernel addresses). TIME is the panic's in
+# UTC (the clock's then, its "Calendar:" line); N, one more than the
+# newest log's, orders them, as TIME cannot: a panic before the clock was
+# set (the Pi 4 has none until NTP answers, the Pi 5's needs a battery)
+# says 1970. The newest 10 by N are kept.
+panic_log=""
+rm -f /var/log/.panic.new
+if (umask 077; sysctl -n kern.previous_panic > /var/log/.panic.new) 2>/dev/null &&
+	grep -q . /var/log/.panic.new; then
+	t=$(sed -n 's/^ *Calendar: 0x\([0-9a-fA-F]*\) .*/\1/p' /var/log/.panic.new | head -n 1)
+	t=$((0x${t:-0}))
+	[ "$t" -gt 0 ] || t=$(date +%s)
+	t=$(date -u -r "$t" +%Y-%m-%d-%H%M%S)
+	# The saved logs as "N NAME", the newest first (N without its zeros,
+	# which would make it octal in $(( ))).
+	panic_logs() {
+		ls /var/log | sed -n 's/^panic-0*\([0-9][0-9]*\)-[0-9][0-9]*-[0-9][0-9]-[0-9][0-9]-[0-9]\{6\}\.panic$/\1 &/p' |
+			sort -n -r
+	}
+	n=$(panic_logs | sed -n '1s/ .*//p')
+	panic_log=/var/log/$(printf 'panic-%04d-%s.panic' $((${n:-0} + 1)) "$t")
+	mv /var/log/.panic.new "$panic_log"
+	panic_logs | sed 1,10d | while read -r n f; do
+		rm -f "/var/log/$f"
+	done
+	sync
+	echo "rc: the previous boot panicked; its panic log: $panic_log"
+fi
+rm -f /var/log/.panic.new
+
+# notifyd first: the notify(3) server the others post to and watch
+# (time zone, network changes, ...). Clients find it only once it has
+# checked in, so wait for that (a second at most).
+if [ -x /usr/sbin/notifyd ]; then
+	/usr/sbin/notifyd &
+	for i in 1 2 3 4 5 6 7 8 9 10; do
+		notifyutil -g com.apple.system.timezone >/dev/null 2>&1 && break
+		sleep 0.1
+	done
+fi
+
+# syslogd next: everything after it logs to /var/log/system.log.
+if [ -x /usr/sbin/syslogd ]; then
+	/usr/sbin/syslogd
+fi
+
+# Dirty buffers go to disk every 30 s, as BSD's update(8) has them: the
+# kernel has no periodic flush of its own, so a hard reset lost every
+# write since the last sync (logs, installed files), sometimes hours.
+( trap '' HUP; while :; do sleep 30; sync; done ) &
+
+# Kernel extensions: the ones a list names for the running kernel's SoC
+# (kern.version names its build, DEVELOPMENT_ARM64_BCM2712), each NAME.kext
+# as NAME-<soc>.kext where there is one (/etc/kexts.conf says how). A kext
+# that fails to load is reported and skipped.
+soc=$(sysctl -n kern.version | sed -n 's/.*_ARM64_\([A-Za-z0-9]*\).*/\1/p' | tr A-Z a-z)
+load_kexts() {
+	[ -r "$1" ] && [ -x /sbin/kextload ] || return 0
+	set -f
+	while read -r line; do
+		set -- ${line%%#*}
+		[ $# -gt 0 ] || continue
+		kext="$1"
+		shift
+		if [ $# -gt 0 ]; then
+			case " $* " in *" $soc "*) ;; *) continue ;; esac
+		fi
+		case "$kext" in
+		*/*) ;;
+		*)
+			for d in /Library/Extensions /System/Library/Extensions; do
+				if [ -d "$d/$kext" ] || [ -d "$d/${kext%.kext}-$soc.kext" ]; then
+					kext="$d/$kext"
+					break
+				fi
+			done
+			;;
+		esac
+		[ -d "${kext%.kext}-$soc.kext" ] && kext="${kext%.kext}-$soc.kext"
+		kextload -q "$kext" || echo "rc: $kext did not load" >&2
+	done < "$1"
+	set +f
+}
+
+load_kexts /usr/lib/blueberry-pie-os/kexts.early
+load_kexts /etc/kexts.conf
+
+# IOKit matches the Ethernet drivers after kextload returns: wait for
+# their interfaces (en*) a while, as the network below takes the ones
+# there are then (up to 10 s, on a board without Ethernet).
+n=0
+while [ $n -lt 50 ]; do
+	case " $(ifconfig -l) " in *" en"[0-9]*) break ;; esac
+	sleep 0.2
+	n=$((n + 1))
+done
+
+# mDNSResponder: host names (DNS, with dhcpc's name servers, and Bonjour).
+if [ -x /usr/sbin/mDNSResponder ]; then
+	/usr/sbin/mDNSResponder
+fi
+
+# IPv6 starts on lo0 and on each Ethernet interface. Each gets a
+# link-local address. rtsol asks the routers for SLAAC addresses and a
+# default route once the link-local address is past its duplicate check.
+if [ -x /sbin/ip6config ]; then
+	ip6config start-v6 lo0
+	for i in $(ifconfig -l); do
+		case "$i" in
+		en*)
+			ip6config start-v6 "$i"
+			( trap '' HUP; sleep 2; rtsol "$i" >/dev/null 2>&1 ) &
+			;;
+		esac
+	done
+fi
+
+# Network: DHCP on each Ethernet interface, in the background so that the
+# console does not wait for it (lo0 the kernel sets up itself).
+for i in $(ifconfig -l); do
+	case "$i" in
+	en*) dhcpc -t 30 "$i" & ;;
+	esac
+done
+
+# The time, from NTP once the network is up (the Pi 4 has no clock; the
+# Pi 5's keeps time while it is off only with a battery).
+# Until it answers, the clock starts no earlier than when the system last
+# ran or was installed (the newest of the system log, dpkg's database and
+# apt's lists directory, whose time is that of the last apt update that
+# changed a list), as Debian's fake-hwclock does: signed package lists
+# dated after 1970 are then not "not valid yet". ntpdate writes
+# /var/run/clock-synced once it has set the clock; apt update waits for
+# that, 30 s at most (/usr/libexec/clock-wait), as https needs the time
+# to check certificates.
+last=$(stat -f %m /var/log/system.log /var/lib/dpkg/status /var/lib/apt/lists 2>/dev/null |
+	sort -n | tail -n 1)
+if [ -n "$last" ] && [ "$(date +%s)" -lt "$last" ]; then
+	date -f %s "$last" > /dev/null
+fi
+if [ -x /usr/sbin/ntpdate ]; then
+	ntpdate -w 120 -t /var/run/clock-synced &
+fi
+
+# The users' home directories, owned by them: the volume's files are
+# root's (the image is made without root's privileges), so pie's home,
+# and the ssh keys mkroot.sh -K put in it, become pie's at the first boot.
+# (Systems that base-files upgraded may have kept their own passwd.)
+if id pie >/dev/null 2>&1; then
+	if [ ! -d /Users/pie ]; then
+		install -d -m 755 /Users/pie
+	fi
+	if [ "$(stat -f %u /Users/pie)" != 501 ]; then
+		chown -R pie:staff /Users/pie
+	fi
+fi
+
+# SSH keys for root and pie come from the SD card's boot partition. A
+# file named authorized_keys there adds its keys to both users'. Any
+# computer that can write FAT can make it. Raspberry Pi OS takes an ssh
+# file there in the same way. The boot partition is slice 1 of the
+# root's disk, mounted read-only for a moment.
+# add_keys FILE HOME USER: FILE's keys not in HOME's already, added. A
+# link there, which the user may have made, is left alone: root would
+# write and chown what it points to.
+add_keys() {
+	if [ -L "$2/.ssh" ] || [ -L "$2/.ssh/authorized_keys" ]; then
+		echo "rc: $2/.ssh or its authorized_keys is a link; no keys added" >&2
+		return
+	fi
+	install -d -m 700 "$2/.ssh"
+	touch "$2/.ssh/authorized_keys"
+	tr -d '\r' < "$1" | while IFS= read -r k; do
+		case "$k" in ""|"#"*) continue ;; esac
+		grep -qxF -- "$k" "$2/.ssh/authorized_keys" ||
+			printf '%s\n' "$k" >> "$2/.ssh/authorized_keys"
+	done
+	chmod 600 "$2/.ssh/authorized_keys"
+	chown -h "$3" "$2/.ssh" "$2/.ssh/authorized_keys"
+}
+root=$(df / | awk 'NR == 2 { print $1 }')
+case "$root" in
+/dev/disk*s[0-9]*)
+	boot="${root%s*}s1"
+	if [ "$(fstyp "$boot" 2>/dev/null)" = msdos ]; then
+		mnt=$(mktemp -d /tmp/boot.XXXXXX)
+		if mount_msdos -o rdonly "$boot" "$mnt" 2>/dev/null; then
+			if [ -f "$mnt/authorized_keys" ]; then
+				add_keys "$mnt/authorized_keys" /var/root root:wheel
+				if id pie >/dev/null 2>&1; then
+					add_keys "$mnt/authorized_keys" /Users/pie pie:staff
+				fi
+			fi
+			umount "$mnt"
+		fi
+		rmdir "$mnt"
+	fi
+	;;
+esac
+
+# sshd: its host keys on the first boot, then the daemon.
+if [ -x /usr/sbin/sshd ]; then
+	ssh-keygen -A
+	/usr/sbin/sshd
+fi
+
+# The whatis databases that apropos and whatis search, if missing:
+# doc_cmds' postinst makes them on the target, but not in a root built
+# elsewhere, as the image's is. Not in the background: makewhatis catches
+# SIGHUP (removing its temporary file), so the hangup that rc's exit
+# sends its background jobs would stop it; it takes a second or two.
+if [ -x /usr/libexec/makewhatis ] && [ ! -f /usr/share/man/whatis ]; then
+	/usr/libexec/makewhatis /usr/share/man
+fi
+
+if [ -n "$panic_log" ]; then
+	echo
+	echo "The previous boot panicked. Its panic log: $panic_log"
+fi
+echo
+uname -sv
+echo

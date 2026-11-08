@@ -1,0 +1,136 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: base-files
+Source: https://github.com/blueberrypieos/base-files
+Files-Excluded: *
+Files-Included:
+ etc/*
+ licenses/APSL-1.0
+ licenses/APSL-1.1
+ licenses/APSL-1.2
+ licenses/APSL-2.0
+ licenses/Apache-2.0
+ licenses/Artistic-1.0-Perl
+ licenses/CC-BY-3.0
+ licenses/CC-BY-SA-2.0
+ licenses/CC0-1.0
+ licenses/CDDL-1.0
+ licenses/GFDL-1.1-no-invariants-or-later
+ licenses/GFDL-1.2-no-invariants-or-later
+ licenses/GPL-1.0-or-later
+ licenses/GPL-2.0-only
+ licenses/GPL-2.0-or-later
+ licenses/GPL-3.0-only
+ licenses/GPL-3.0-or-later
+ licenses/LGPL-2.0-only
+ licenses/LGPL-2.0-or-later
+ licenses/LGPL-2.1-only
+ licenses/LGPL-2.1-or-later
+ licenses/LGPL-3.0-only
+ licenses/LGPL-3.0-or-later
+ licenses/LLVM-exception
+ licenses/MPL-1.1
+ licenses/MPL-2.0
+ licenses/OFL-1.1
+
+Files: *
+Copyright: 2026 The Blueberry Pie OS Authors
+License: BSD-2-Clause
+
+Files: debian/*
+Copyright: 2026 The Blueberry Pie OS Authors
+License: BSD-2-Clause
+
+Files: licenses/APSL-2.0
+Copyright: 1999-2003 Apple Computer, Inc.
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/APSL-1.0
+ licenses/APSL-1.1
+ licenses/APSL-1.2
+Copyright: 1999-2001 Apple Computer, Inc.
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/GPL-1.0-or-later
+ licenses/GFDL-1.1-no-invariants-or-later
+ licenses/GFDL-1.2-no-invariants-or-later
+Copyright: 1989, 2000, 2001, 2002 Free Software Foundation, Inc.
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/CC0-1.0
+ licenses/CC-BY-3.0
+ licenses/CC-BY-SA-2.0
+Copyright: Creative Commons
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/Artistic-1.0-Perl
+Copyright: Larry Wall
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/OFL-1.1
+Copyright: 2005-2023 SIL International
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/GPL-2.0-only
+ licenses/GPL-2.0-or-later
+ licenses/LGPL-2.0-only
+ licenses/LGPL-2.0-or-later
+ licenses/LGPL-2.1-only
+ licenses/LGPL-2.1-or-later
+Copyright: 1989, 1991, 1999 Free Software Foundation, Inc.
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/GPL-3.0-only
+ licenses/GPL-3.0-or-later
+ licenses/LGPL-3.0-only
+ licenses/LGPL-3.0-or-later
+Copyright: 2007 Free Software Foundation, Inc.
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/Apache-2.0
+Copyright: The Apache Software Foundation
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/LLVM-exception
+Copyright: The LLVM project
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/MPL-1.1
+Copyright: Netscape Communications Corporation
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/MPL-2.0
+Copyright: Mozilla Foundation
+License: LicenseRef-verbatim-licence-text
+
+Files: licenses/CDDL-1.0
+Copyright: Sun Microsystems, Inc.
+License: LicenseRef-verbatim-licence-text
+
+License: BSD-2-Clause
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ .
+ 1. Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+ .
+ 2. Redistributions in binary form must reproduce the above copyright
+ notice, this list of conditions and the following disclaimer in the
+ documentation and/or other materials provided with the distribution.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+ TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+License: LicenseRef-verbatim-licence-text
+ Licence texts, copied verbatim. The FSF's texts say: "Everyone is
+ permitted to copy and distribute verbatim copies of this license
+ document, but changing it is not allowed."

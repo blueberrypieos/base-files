@@ -1,0 +1,7 @@
+# /etc/master.passwd: the users, with their password fields.
+nobody:*:-2:-2::0:0:Unprivileged User:/var/empty:/usr/bin/false
+root:*:0:0::0:0:System Administrator:/var/root:/bin/sh
+daemon:*:1:1::0:0:System Services:/var/root:/usr/bin/false
+_sshd:*:75:75::0:0:sshd Privilege separation:/var/empty:/usr/bin/false
+_apt:*:42:42::0:0:APT downloads (apt's sandbox user):/var/empty:/usr/bin/false
+pie:*:501:20::0:0:Pie:/Users/pie:/bin/sh
