@@ -1,0 +1,14 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Blueberry Pie OS Authors
+
+elapsed=0
+while [ ! -e /var/run/clock-synced ]; do
+	[ "$elapsed" -lt 30 ] || break
+	sleep 1
+	elapsed=$((elapsed + 1))
+done
+if [ ! -e /var/run/clock-synced ]; then
+	echo "clock-wait: the clock may be wrong after waiting 30 seconds." >&2
+fi
+exit 0

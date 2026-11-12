@@ -4,6 +4,7 @@ Source: https://github.com/blueberrypieos/base-files
 Files-Excluded: *
 Files-Included:
  etc/*
+ usr/libexec/clock-wait
  licenses/APSL-1.0
  licenses/APSL-1.1
  licenses/APSL-1.2
@@ -33,10 +34,6 @@ Files-Included:
  licenses/OFL-1.1
 
 Files: *
-Copyright: 2026 The Blueberry Pie OS Authors
-License: BSD-2-Clause
-
-Files: debian/*
 Copyright: 2026 The Blueberry Pie OS Authors
 License: BSD-2-Clause
 

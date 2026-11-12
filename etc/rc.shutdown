@@ -1,0 +1,25 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Blueberry Pie OS Authors
+#
+# /etc/rc.shutdown: run by init before a reboot or halt, while every
+# process still runs. $1 is reboot or halt.
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+# auditd closes the trail: it writes the shutdown record, gives the file
+# its end time and removes /var/audit/current, whatever audit_control's
+# dir says. Left open, the next boot's auditd keeps it as crash_recovery.
+# Wait up to 5 s for the link to go.
+if [ -x /usr/sbin/auditd ] && [ -L /var/audit/current ]; then
+	audit -t >/dev/null
+	i=0
+	while [ -L /var/audit/current ] && [ $i -lt 50 ]; do
+		sleep 0.1
+		i=$((i + 1))
+	done
+	if [ -L /var/audit/current ]; then
+		echo "rc.shutdown: auditd did not close the trail in 5 s" >&2
+	fi
+fi

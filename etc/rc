@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Blueberry Pie OS Authors
 #
-# /etc/rc: run by init at boot, before the console shell starts.
+# /etc/rc: run by init at boot, before the console login starts.
 
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export PATH
@@ -58,9 +58,65 @@ if [ -x /usr/sbin/notifyd ]; then
 	done
 fi
 
+# The clock, before syslogd starts: no earlier than when the system last
+# ran or was installed (the newest of the system log, dpkg's database and
+# apt's lists directory, whose time is that of the last apt update that
+# changed a list), as Debian's fake-hwclock does. syslogd times its daily
+# rotation of system.log from the clock it starts with. Signed package
+# lists dated after 1970 are then not "not valid yet". NTP sets it later.
+last=$(stat -f %m /var/log/system.log /var/lib/dpkg/status /var/lib/apt/lists 2>/dev/null |
+	sort -n | tail -n 1)
+if [ -n "$last" ] && [ "$(date +%s)" -lt "$last" ]; then
+	date -f %s "$last" > /dev/null
+fi
+
 # syslogd next: everything after it logs to /var/log/system.log.
 if [ -x /usr/sbin/syslogd ]; then
 	/usr/sbin/syslogd
+fi
+
+# auditd next: it writes the audit records of login, sshd and the kernel
+# to /var/audit, as /etc/security/audit_control says. With -l it checks in
+# the audit control port that init made, stays in the foreground and waits
+# for audit -i to start the trail. The message waits on the port until
+# auditd has checked it in. The hangup rc's exit sends makes auditd read
+# its configuration again.
+if [ -x /usr/sbin/auditd ]; then
+	/usr/sbin/auditd -l &
+	audit -i >/dev/null
+fi
+
+# The accounts: opendirectoryd keeps them in /var/db/dslocal, root's only.
+# base-files has the system accounts' records in /usr/share/base-files;
+# any of them missing there is copied in, so a removed record comes back
+# and a changed one stays. Then the daemon, started again if it exits; it
+# ignores the hangup rc's exit sends. Lookups and logins need it, so wait
+# until it answers, for about 10 s at most.
+dslocal=/var/db/dslocal/nodes/Default
+mkdir -p /var/db
+install -d -m 700 /var/db/dslocal /var/db/dslocal/nodes "$dslocal" \
+	"$dslocal/users" "$dslocal/groups"
+for f in /usr/share/base-files/dslocal/users/*.plist \
+	/usr/share/base-files/dslocal/groups/*.plist; do
+	[ -f "$f" ] || continue
+	t="$dslocal/${f#/usr/share/base-files/dslocal/}"
+	[ -f "$t" ] && [ ! -L "$t" ] && continue
+	d="${t%/*}"
+	n="${t##*/}"
+	rm -rf "$t" "$d/.$n.tmp"
+	install -m 600 "$f" "$d/.$n.tmp" && mv "$d/.$n.tmp" "$t"
+done
+if [ -x /usr/libexec/opendirectoryd ]; then
+	( trap '' HUP; while :; do /usr/libexec/opendirectoryd; sleep 1; done ) &
+	n=0
+	until dscl . -read /Users/root RecordName >/dev/null 2>&1; do
+		n=$((n + 1))
+		if [ $n -ge 50 ]; then
+			echo "rc: opendirectoryd did not answer in 10 s" >&2
+			break
+		fi
+		sleep 0.2
+	done
 fi
 
 # Dirty buffers go to disk every 30 s, as BSD's update(8) has them: the
@@ -143,28 +199,42 @@ for i in $(ifconfig -l); do
 done
 
 # The time, from NTP once the network is up (the Pi 4 has no clock; the
-# Pi 5's keeps time while it is off only with a battery).
-# Until it answers, the clock starts no earlier than when the system last
-# ran or was installed (the newest of the system log, dpkg's database and
-# apt's lists directory, whose time is that of the last apt update that
-# changed a list), as Debian's fake-hwclock does: signed package lists
-# dated after 1970 are then not "not valid yet". ntpdate writes
-# /var/run/clock-synced once it has set the clock; apt update waits for
+# Pi 5's keeps time while it is off only with a battery). rc writes
+# /var/run/clock-synced once NTP has set the clock; apt update waits for
 # that, 30 s at most (/usr/libexec/clock-wait), as https needs the time
 # to check certificates.
-last=$(stat -f %m /var/log/system.log /var/lib/dpkg/status /var/lib/apt/lists 2>/dev/null |
-	sort -n | tail -n 1)
-if [ -n "$last" ] && [ "$(date +%s)" -lt "$last" ]; then
-	date -f %s "$last" > /dev/null
-fi
 if [ -x /usr/sbin/ntpdate ]; then
-	ntpdate -w 120 -t /var/run/clock-synced &
+	(
+		trap '' HUP
+		elapsed=0
+		while [ "$elapsed" -lt 120 ]; do
+			ntpdate -s -b -u -p 1 -t 1 pool.ntp.org >/dev/null 2>&1 &
+			pid=$!
+			while kill -0 "$pid" 2>/dev/null && [ "$elapsed" -lt 120 ]; do
+				sleep 1
+				elapsed=$((elapsed + 1))
+			done
+			if kill -0 "$pid" 2>/dev/null; then
+				kill -KILL "$pid" 2>/dev/null
+				wait "$pid" 2>/dev/null
+				break
+			fi
+			if wait "$pid"; then
+				touch /var/run/clock-synced
+				break
+			fi
+			[ "$elapsed" -lt 120 ] || break
+			sleep 1
+			elapsed=$((elapsed + 1))
+		done
+	) &
 fi
 
 # The users' home directories, owned by them: the volume's files are
 # root's (the image is made without root's privileges), so pie's home,
 # and the ssh keys mkroot.sh -K put in it, become pie's at the first boot.
-# (Systems that base-files upgraded may have kept their own passwd.)
+# pie's record in OpenDirectory comes from the image, not base-files, so
+# a system may have no pie.
 if id pie >/dev/null 2>&1; then
 	if [ ! -d /Users/pie ]; then
 		install -d -m 755 /Users/pie

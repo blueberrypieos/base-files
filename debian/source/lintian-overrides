@@ -1,0 +1,1 @@
+superfluous-file-pattern debian/base-files/usr/share/base-files/dslocal/* [debian/copyright:*]

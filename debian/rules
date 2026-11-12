@@ -4,6 +4,7 @@
 
 SOURCE_DATE_EPOCH ?= $(shell dpkg-parsechangelog -STimestamp)
 D := $(CURDIR)/debian/base-files
+T := $(D)/usr/share/base-files/dslocal
 DIRS := dev sbin bin cores Volumes private private/etc private/tmp private/var \
 	private/var/tmp private/var/log private/var/run private/var/root \
 	private/var/empty private/var/folders private/var/folders/zz Users
@@ -21,11 +22,29 @@ binary-arch:
 	ln -s private/etc $(D)/etc
 	ln -s private/tmp $(D)/tmp
 	ln -s private/var $(D)/var
-	install -m 644 etc/* $(D)/private/etc/
+	find etc -maxdepth 1 -type f -exec install -m 644 {} $(D)/private/etc/ \;
+	install -D -m 755 usr/libexec/clock-wait $(D)/usr/libexec/clock-wait
+	install -D -m 644 etc/apt/apt.conf.d/50clock-wait $(D)/private/etc/apt/apt.conf.d/50clock-wait
 	chmod 600 $(D)/private/etc/master.passwd
+	set -e; grep -v '^#' etc/passwd | while IFS=: read -r name pw uid gid gecos home shell; do \
+		python3 -I debian/dslocal-record user $(T) --name "$$name" --uid "$$uid" --gid "$$gid" \
+			--realname "$$gecos" --home "$$home" --shell "$$shell" > /dev/null; \
+	done
+	set -e; grep -v '^#' etc/group | while IFS=: read -r name pw gid members; do \
+		set --; \
+		for m in $$(echo "$$members" | tr , ' '); do \
+			uuid=$$(python3 -I -c 'import plistlib, sys; print(plistlib.load(open(sys.argv[1], "rb"))["generateduid"][0])' \
+				$(T)/users/$$m.plist); \
+			set -- "$$@" --member "$$m" --member-uuid "$$uuid"; \
+		done; \
+		python3 -I debian/dslocal-record group $(T) --name "$$name" --gid "$$gid" "$$@" > /dev/null; \
+	done
+	find $(D)/usr/share/base-files -type d -exec chmod 755 {} +
+	find $(T) -type f -exec chmod 644 {} +
 	find licenses -maxdepth 1 -type f ! -name README -exec install -m 644 {} $(D)/usr/share/common-licenses/ \;
 	install -D -m 644 debian/copyright $(D)/usr/share/doc/base-files/copyright
 	mkdir -p $(D)/DEBIAN
+	install -m 755 debian/preinst $(D)/DEBIAN/preinst
 	cd $(D) && find private/etc -type f -printf '/%p\n' | sort > DEBIAN/conffiles
 	cd $(D) && find . -path ./DEBIAN -prune -o -type f -printf '%P\0' | sort -z | xargs -0 md5sum > DEBIAN/md5sums
 	dpkg-gencontrol -pbase-files -P$(D)

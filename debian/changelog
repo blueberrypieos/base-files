@@ -1,3 +1,19 @@
+base-files (2) blueberry-pie-os; urgency=medium
+
+  * Ship /etc/gettytab and /etc/ttys for the console login.
+  * Set the clock with ntpdate at boot. apt update waits up to 30 seconds for it.
+    ntpdate logs to syslog, not the console.
+  * Accounts live in OpenDirectory. rc starts opendirectoryd after syslogd.
+  * /etc/shells lists only /bin/sh, the one shell installed.
+  * rc starts opendirectoryd again if it exits.
+  * base-files 1 can't be upgraded to 2: install a new image.
+  * rc sets the clock to the newest log or package time before syslogd starts.
+  * rc starts auditd after syslogd, if it is installed. auditd checks in
+    the audit control port that init made, and audit -i starts the trail.
+  * rc.shutdown closes the audit trail before a reboot or halt. init 3 runs it.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Wed, 11 Nov 2026 22:19:04 +0000
+
 base-files (1) blueberry-pie-os; urgency=medium
 
   * base-files 1
