@@ -1,3 +1,15 @@
+base-files (4) blueberry-pie-os; urgency=medium
+
+  * /usr/libexec/pie-boot-partition prints the boot partition, on a ZFS
+    root too. rc finds the authorized_keys file with it.
+  * rc gives the keys and the home directory to the administrator, uid
+    501, whatever its name.
+  * rc makes the whatis databases only on a writable root.
+  * The postinst records the 1777 modes of /private/tmp, /private/var/tmp
+    and /private/var/folders/zz as dpkg statoverrides.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Mon, 16 Nov 2026 20:25:00 +0000
+
 base-files (3) blueberry-pie-os; urgency=medium
 
   * Build-Depend on pietoolchain-host and pietoolchain-sdk.

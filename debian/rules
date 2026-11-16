@@ -24,6 +24,7 @@ binary-arch:
 	ln -s private/var $(D)/var
 	find etc -maxdepth 1 -type f -exec install -m 644 {} $(D)/private/etc/ \;
 	install -D -m 755 usr/libexec/clock-wait $(D)/usr/libexec/clock-wait
+	install -D -m 755 usr/libexec/pie-boot-partition $(D)/usr/libexec/pie-boot-partition
 	install -D -m 644 etc/apt/apt.conf.d/50clock-wait $(D)/private/etc/apt/apt.conf.d/50clock-wait
 	chmod 600 $(D)/private/etc/master.passwd
 	set -e; grep -v '^#' etc/passwd | while IFS=: read -r name pw uid gid gecos home shell; do \
@@ -44,7 +45,7 @@ binary-arch:
 	find licenses -maxdepth 1 -type f ! -name README -exec install -m 644 {} $(D)/usr/share/common-licenses/ \;
 	install -D -m 644 debian/copyright $(D)/usr/share/doc/base-files/copyright
 	mkdir -p $(D)/DEBIAN
-	install -m 755 debian/preinst $(D)/DEBIAN/preinst
+	install -m 755 debian/preinst debian/postinst $(D)/DEBIAN/
 	cd $(D) && find private/etc -type f -printf '/%p\n' | sort > DEBIAN/conffiles
 	cd $(D) && find . -path ./DEBIAN -prune -o -type f -printf '%P\0' | sort -z | xargs -0 md5sum > DEBIAN/md5sums
 	dpkg-gencontrol -pbase-files -P$(D)

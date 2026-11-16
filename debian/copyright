@@ -5,6 +5,7 @@ Files-Excluded: *
 Files-Included:
  etc/*
  usr/libexec/clock-wait
+ usr/libexec/pie-boot-partition
  licenses/APSL-1.0
  licenses/APSL-1.1
  licenses/APSL-1.2

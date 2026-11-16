@@ -1,0 +1,27 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Blueberry Pie OS Authors
+#
+# usage: pie-boot-partition
+#
+# Prints the boot partition, /dev/diskNs1: slice 1 of the disk the root
+# is on. On a ZFS root, that is the disk of the root pool's first device.
+# It exits 1 if the root is on no disk slice.
+
+PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH
+
+dev=$(df / | awk 'NR == 2 { print $1 }')
+case $dev in
+/dev/disk*s[0-9]*) ;;
+*)
+	if command -v zpool > /dev/null 2>&1 &&
+		mount | awk '$2 == "on" && $3 == "/" && $4 == "(zfs," { found = 1 } END { exit !found }'; then
+		dev=$(zpool list -H -P -v "${dev%%/*}" 2>/dev/null | awk '$1 ~ "^/dev/disk" { print $1; exit }')
+	fi
+	;;
+esac
+case $dev in
+/dev/disk*s[0-9]*) echo "${dev%s*}s1" ;;
+*) exit 1 ;;
+esac

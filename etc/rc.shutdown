@@ -2,8 +2,8 @@
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Blueberry Pie OS Authors
 #
-# /etc/rc.shutdown: run by init before a reboot or halt, while every
-# process still runs. $1 is reboot or halt.
+# /etc/rc.shutdown: run by init before a reboot, halt or soft reboot,
+# while every process still runs. $1 is reboot, halt or softreboot.
 
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export PATH

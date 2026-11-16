@@ -233,22 +233,24 @@ fi
 # The users' home directories, owned by them: the volume's files are
 # root's (the image is made without root's privileges), so pie's home,
 # and the ssh keys mkroot.sh -K put in it, become pie's at the first boot.
-# pie's record in OpenDirectory comes from the image, not base-files, so
-# a system may have no pie.
-if id pie >/dev/null 2>&1; then
-	if [ ! -d /Users/pie ]; then
-		install -d -m 755 /Users/pie
+# The administrator, uid 501, has its record in OpenDirectory from the
+# image or from pie-data create, not from base-files, so a system may have
+# none. It is pie on the image.
+admin=$(id -un 501 2>/dev/null)
+if [ -n "$admin" ]; then
+	if [ ! -d "/Users/$admin" ]; then
+		install -d -m 755 "/Users/$admin"
 	fi
-	if [ "$(stat -f %u /Users/pie)" != 501 ]; then
-		chown -R pie:staff /Users/pie
+	if [ "$(stat -f %u "/Users/$admin")" != 501 ]; then
+		chown -R "$admin:staff" "/Users/$admin"
 	fi
 fi
 
-# SSH keys for root and pie come from the SD card's boot partition. A
-# file named authorized_keys there adds its keys to both users'. Any
-# computer that can write FAT can make it. Raspberry Pi OS takes an ssh
-# file there in the same way. The boot partition is slice 1 of the
-# root's disk, mounted read-only for a moment.
+# SSH keys for root and the administrator come from the SD card's boot
+# partition. A file named authorized_keys there adds its keys to both
+# users'. Any computer that can write FAT can make it. Raspberry Pi OS
+# takes an ssh file there in the same way. The boot partition is slice 1
+# of the root's disk (pie-boot-partition), mounted read-only for a moment.
 # add_keys FILE HOME USER: FILE's keys not in HOME's already, added. A
 # link there, which the user may have made, is left alone: root would
 # write and chown what it points to.
@@ -267,25 +269,20 @@ add_keys() {
 	chmod 600 "$2/.ssh/authorized_keys"
 	chown -h "$3" "$2/.ssh" "$2/.ssh/authorized_keys"
 }
-root=$(df / | awk 'NR == 2 { print $1 }')
-case "$root" in
-/dev/disk*s[0-9]*)
-	boot="${root%s*}s1"
-	if [ "$(fstyp "$boot" 2>/dev/null)" = msdos ]; then
-		mnt=$(mktemp -d /tmp/boot.XXXXXX)
-		if mount_msdos -o rdonly "$boot" "$mnt" 2>/dev/null; then
-			if [ -f "$mnt/authorized_keys" ]; then
-				add_keys "$mnt/authorized_keys" /var/root root:wheel
-				if id pie >/dev/null 2>&1; then
-					add_keys "$mnt/authorized_keys" /Users/pie pie:staff
-				fi
+boot=$(/usr/libexec/pie-boot-partition)
+if [ -n "$boot" ] && [ "$(fstyp "$boot" 2>/dev/null)" = msdos ]; then
+	mnt=$(mktemp -d /tmp/boot.XXXXXX)
+	if mount_msdos -o rdonly "$boot" "$mnt" 2>/dev/null; then
+		if [ -f "$mnt/authorized_keys" ]; then
+			add_keys "$mnt/authorized_keys" /var/root root:wheel
+			if [ -n "$admin" ]; then
+				add_keys "$mnt/authorized_keys" "/Users/$admin" "$admin:staff"
 			fi
-			umount "$mnt"
 		fi
-		rmdir "$mnt"
+		umount "$mnt"
 	fi
-	;;
-esac
+	rmdir "$mnt"
+fi
 
 # sshd: its host keys on the first boot, then the daemon.
 if [ -x /usr/sbin/sshd ]; then
@@ -297,8 +294,9 @@ fi
 # doc_cmds' postinst makes them on the target, but not in a root built
 # elsewhere, as the image's is. Not in the background: makewhatis catches
 # SIGHUP (removing its temporary file), so the hangup that rc's exit
-# sends its background jobs would stop it; it takes a second or two.
-if [ -x /usr/libexec/makewhatis ] && [ ! -f /usr/share/man/whatis ]; then
+# sends its background jobs would stop it; it takes a second or two. A
+# read-only root has its databases made when it is staged.
+if [ -x /usr/libexec/makewhatis ] && [ ! -f /usr/share/man/whatis ] && [ -w /usr/share/man ]; then
 	/usr/libexec/makewhatis /usr/share/man
 fi
 

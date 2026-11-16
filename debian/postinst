@@ -1,0 +1,10 @@
+#!/bin/sh
+# SPDX-License-Identifier: BSD-2-Clause
+# Copyright (c) 2026 The Blueberry Pie OS Authors
+set -e
+if [ "$1" = configure ]; then
+	for d in /private/tmp /private/var/tmp /private/var/folders/zz; do
+		dpkg-statoverride --list "$d" > /dev/null ||
+			dpkg-statoverride --update --add '#0' '#0' 1777 "$d"
+	done
+fi
