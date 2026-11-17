@@ -1,3 +1,9 @@
+base-files (3) blueberry-pie-os; urgency=medium
+
+  * Build-Depend on pietoolchain-host and pietoolchain-sdk.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Sun, 15 Nov 2026 08:53:34 +0000
+
 base-files (2) blueberry-pie-os; urgency=medium
 
   * Ship /etc/gettytab and /etc/ttys for the console login.
