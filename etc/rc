@@ -124,6 +124,16 @@ fi
 # write since the last sync (logs, installed files), sometimes hours.
 ( trap '' HUP; while :; do sleep 30; sync; done ) &
 
+# The RK3566 boot loader: u-boot-rk3566's pie-update-loader writes the
+# installed U-Boot to the card when the card holds another. That happens at
+# the first boot into a root upgraded while sealed: u-boot-rk3566's postinst
+# does not write it into the stage. Not in the background: the rest of the
+# boot, sshd and the console login wait for the write, so no one can log in
+# and reboot during it.
+if [ -x /usr/sbin/pie-update-loader ]; then
+	/usr/sbin/pie-update-loader -q
+fi
+
 # Kernel extensions: the ones a list names for the running kernel's SoC
 # (kern.version names its build, DEVELOPMENT_ARM64_BCM2712), each NAME.kext
 # as NAME-<soc>.kext where there is one (/etc/kexts.conf says how). A kext

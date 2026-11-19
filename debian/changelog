@@ -1,3 +1,11 @@
+base-files (5) blueberry-pie-os; urgency=medium
+
+  * rc runs pie-update-loader -q at boot, if it is installed, so that the
+    first boot into an upgraded root writes the RK3566 boot loader to the
+    card.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Thu, 19 Nov 2026 03:00:00 +0000
+
 base-files (4) blueberry-pie-os; urgency=medium
 
   * /usr/libexec/pie-boot-partition prints the boot partition, on a ZFS
