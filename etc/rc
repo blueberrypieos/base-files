@@ -134,10 +134,11 @@ if [ -x /usr/sbin/pie-update-loader ]; then
 	/usr/sbin/pie-update-loader -q
 fi
 
-# Kernel extensions: the ones a list names for the running kernel's SoC
-# (kern.version names its build, DEVELOPMENT_ARM64_BCM2712), each NAME.kext
-# as NAME-<soc>.kext where there is one (/etc/kexts.conf says how). A kext
-# that fails to load is reported and skipped.
+# Kernel extensions: first the ones the kernel package's kexts.early names
+# for the running kernel's SoC (kern.version names its build,
+# DEVELOPMENT_ARM64_BCM2712). A line is a kext's bundle, then the SoCs it is
+# for if not every one. NAME.kext is loaded as NAME-<soc>.kext where there is
+# one. A kext that fails to load is reported and skipped.
 soc=$(sysctl -n kern.version | sed -n 's/.*_ARM64_\([A-Za-z0-9]*\).*/\1/p' | tr A-Z a-z)
 load_kexts() {
 	[ -r "$1" ] && [ -x /sbin/kextload ] || return 0
@@ -168,7 +169,24 @@ load_kexts() {
 }
 
 load_kexts /usr/lib/blueberry-pie-os/kexts.early
-load_kexts /etc/kexts.conf
+
+# kextd then loads the other kexts when IOKit matches one of their drivers
+# to a device. It checks in with init, sends their drivers to IOKit, checks
+# in with the kernel, then writes /var/run/kextd.pid: wait for that, 5 s at
+# most. It is started again if it exits, and the hangup rc's exit sends
+# makes it scan the kexts again.
+if [ -x /usr/libexec/kextd ]; then
+	( trap '' HUP; while :; do /usr/libexec/kextd; sleep 1; done ) &
+	n=0
+	until [ -s /var/run/kextd.pid ]; do
+		n=$((n + 1))
+		if [ $n -ge 25 ]; then
+			echo "rc: kextd did not check in in 5 s" >&2
+			break
+		fi
+		sleep 0.2
+	done
+fi
 
 # IOKit matches the Ethernet drivers after kextload returns: wait for
 # their interfaces (en*) a while, as the network below takes the ones

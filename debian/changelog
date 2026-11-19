@@ -1,3 +1,12 @@
+base-files (6) blueberry-pie-os; urgency=medium
+
+  * rc loads the kernel package's kexts.early, then starts kextd, again
+    if it exits, and waits up to 5 s for its check-in. kextd loads the
+    other kexts when IOKit matches one of their drivers to a device.
+  * /etc/kexts.conf is removed. No package edits a list of kexts any more.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Thu, 19 Nov 2026 19:11:53 +0000
+
 base-files (5) blueberry-pie-os; urgency=medium
 
   * rc runs pie-update-loader -q at boot, if it is installed, so that the
