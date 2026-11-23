@@ -1,3 +1,14 @@
+base-files (8) blueberry-pie-os; urgency=medium
+
+  * rc stores the networks of a wifi.txt on the boot partition with
+    pie-wifi import. The import deletes the file. rc then starts pie-wifi
+    watch. It gives the stored networks to each WiFi interface as it
+    appears. The boot does not wait for WiFi.
+  * rc's own mounts of the boot partition are root-only. One read-only
+    mount serves authorized_keys and wifi.txt.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Fri, 20 Nov 2026 10:06:20 +0000
+
 base-files (7) blueberry-pie-os; urgency=medium
 
   * rc starts dhcpc -a, which runs DHCP on each Ethernet interface and on

@@ -218,47 +218,13 @@ if [ -x /sbin/ip6config ]; then
 	done
 fi
 
-dhcpc -a &
-
-# The time, from NTP once the network is up (the Pi 4 has no clock; the
-# Pi 5's keeps time while it is off only with a battery). rc writes
-# /var/run/clock-synced once NTP has set the clock; apt update waits for
-# that, 30 s at most (/usr/libexec/clock-wait), as https needs the time
-# to check certificates.
-if [ -x /usr/sbin/ntpdate ]; then
-	(
-		trap '' HUP
-		elapsed=0
-		while [ "$elapsed" -lt 120 ]; do
-			ntpdate -s -b -u -p 1 -t 1 pool.ntp.org >/dev/null 2>&1 &
-			pid=$!
-			while kill -0 "$pid" 2>/dev/null && [ "$elapsed" -lt 120 ]; do
-				sleep 1
-				elapsed=$((elapsed + 1))
-			done
-			if kill -0 "$pid" 2>/dev/null; then
-				kill -KILL "$pid" 2>/dev/null
-				wait "$pid" 2>/dev/null
-				break
-			fi
-			if wait "$pid"; then
-				touch /var/run/clock-synced
-				break
-			fi
-			[ "$elapsed" -lt 120 ] || break
-			sleep 1
-			elapsed=$((elapsed + 1))
-		done
-	) &
-fi
-
 # The users' home directories, owned by them: the volume's files are
 # root's (the image is made without root's privileges), so pie's home,
 # and the ssh keys mkroot.sh -K put in it, become pie's at the first boot.
 # The administrator, uid 501, has its record in OpenDirectory from the
 # image or from pie-data create, not from base-files, so a system may have
 # none. It is pie on the image.
-admin=$(id -un 501 2>/dev/null)
+admin=$(id -un 501 2>/dev/null) || admin=
 if [ -n "$admin" ]; then
 	if [ ! -d "/Users/$admin" ]; then
 		install -d -m 755 "/Users/$admin"
@@ -291,19 +257,102 @@ add_keys() {
 	chmod 600 "$2/.ssh/authorized_keys"
 	chown -h "$3" "$2/.ssh" "$2/.ssh/authorized_keys"
 }
-boot=$(/usr/libexec/pie-boot-partition)
-if [ -n "$boot" ] && [ "$(fstyp "$boot" 2>/dev/null)" = msdos ]; then
-	mnt=$(mktemp -d /tmp/boot.XXXXXX)
-	if mount_msdos -o rdonly "$boot" "$mnt" 2>/dev/null; then
-		if [ -f "$mnt/authorized_keys" ]; then
-			add_keys "$mnt/authorized_keys" /var/root root:wheel
+boot_umount() {
+	for _ in 1 2 3; do
+		umount "$boot_mnt" 2>/dev/null && return 0
+		sleep 1
+	done
+	[ "$1" = ro ] && umount -f "$boot_mnt" 2>/dev/null
+}
+boot=$(/usr/libexec/pie-boot-partition) || boot=
+if [ -n "$boot" ] && [ "$(fstyp "$boot" 2>/dev/null)" = msdos ] &&
+    boot_dir=$(mktemp -d /tmp/boot.XXXXXX); then
+	boot_mnt=$boot_dir/fat
+	boot_left=
+	wifi_txt=
+	if mkdir -m 700 "$boot_mnt" &&
+	    mount_msdos -o rdonly -u 0 -g 0 -m 700 "$boot" "$boot_mnt" 2>/dev/null; then
+		if [ -f "$boot_mnt/authorized_keys" ]; then
+			add_keys "$boot_mnt/authorized_keys" /var/root root:wheel
 			if [ -n "$admin" ]; then
-				add_keys "$mnt/authorized_keys" "/Users/$admin" "$admin:staff"
+				add_keys "$boot_mnt/authorized_keys" "/Users/$admin" "$admin:staff"
 			fi
 		fi
-		umount "$mnt"
+		if [ -f "$boot_mnt/wifi.txt" ]; then
+			wifi_txt=1
+		fi
+		if ! boot_umount ro; then
+			boot_left=read-only
+		fi
+	else
+		echo "rc: $boot could not be mounted" >&2
 	fi
-	rmdir "$mnt"
+	if [ -n "$wifi_txt" ] && [ ! -x /usr/sbin/pie-wifi ]; then
+		echo "rc: $boot has a wifi.txt, but pie-wifi is not installed" >&2
+	elif [ -n "$wifi_txt" ]; then
+		if [ -z "$boot_left" ] &&
+		    mount_msdos -u 0 -g 0 -m 700 "$boot" "$boot_mnt" 2>/dev/null; then
+			wifi_status=0
+			pie-wifi import "$boot_mnt/wifi.txt" || wifi_status=$?
+			case $wifi_status in
+			0) ;;
+			3) echo "rc: wifi.txt was imported, but it is still on $boot" >&2 ;;
+			*) echo "rc: wifi.txt was not imported" >&2 ;;
+			esac
+			if ! boot_umount rw; then
+				if mount_msdos -o update,rdonly -u 0 -g 0 -m 700 "$boot" "$boot_mnt" 2>/dev/null; then
+					boot_umount ro || boot_left=read-only
+				else
+					boot_left=read-write
+				fi
+			fi
+		else
+			echo "rc: wifi.txt was not imported" >&2
+		fi
+	fi
+	if [ -n "$boot_left" ]; then
+		echo "rc: $boot is still mounted $boot_left on $boot_mnt" >&2
+	else
+		[ ! -d "$boot_mnt" ] || rmdir "$boot_mnt" 2>/dev/null || :
+		rmdir "$boot_dir" 2>/dev/null || echo "rc: $boot_dir was not removed" >&2
+	fi
+fi
+if [ -x /usr/sbin/pie-wifi ]; then
+	( trap '' HUP; exec pie-wifi watch ) &
+fi
+
+dhcpc -a &
+
+# The time, from NTP once the network is up (the Pi 4 has no clock; the
+# Pi 5's keeps time while it is off only with a battery). rc writes
+# /var/run/clock-synced once NTP has set the clock; apt update waits for
+# that, 30 s at most (/usr/libexec/clock-wait), as https needs the time
+# to check certificates.
+if [ -x /usr/sbin/ntpdate ]; then
+	(
+		trap '' HUP
+		elapsed=0
+		while [ "$elapsed" -lt 120 ]; do
+			ntpdate -s -b -u -p 1 -t 1 pool.ntp.org >/dev/null 2>&1 &
+			pid=$!
+			while kill -0 "$pid" 2>/dev/null && [ "$elapsed" -lt 120 ]; do
+				sleep 1
+				elapsed=$((elapsed + 1))
+			done
+			if kill -0 "$pid" 2>/dev/null; then
+				kill -KILL "$pid" 2>/dev/null
+				wait "$pid" 2>/dev/null
+				break
+			fi
+			if wait "$pid"; then
+				touch /var/run/clock-synced
+				break
+			fi
+			[ "$elapsed" -lt 120 ] || break
+			sleep 1
+			elapsed=$((elapsed + 1))
+		done
+	) &
 fi
 
 # sshd: its host keys on the first boot, then the daemon.
