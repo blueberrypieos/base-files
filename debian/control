@@ -14,6 +14,7 @@ Architecture: darwin-arm64
 Essential: yes
 Priority: required
 Depends: opendirectoryd
+Breaks: dhcpc (<< 4)
 Description: root layout, /etc defaults and licence texts
  The root's directories. /etc, /tmp and /var are links into /private.
  The defaults in /etc. init runs /etc/rc at boot and /etc/rc.shutdown

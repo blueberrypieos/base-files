@@ -1,3 +1,11 @@
+base-files (7) blueberry-pie-os; urgency=medium
+
+  * rc starts dhcpc -a, which runs DHCP on each Ethernet interface and on
+    each one that appears later.
+  * Breaks dhcpc before 4, which has no -a.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Thu, 19 Nov 2026 21:11:08 +0000
+
 base-files (6) blueberry-pie-os; urgency=medium
 
   * rc loads the kernel package's kexts.early, then starts kextd, again
