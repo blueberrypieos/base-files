@@ -1,3 +1,10 @@
+base-files (10) blueberry-pie-os; urgency=medium
+
+  * The group spi has gid 95, and the group i2c has gid 96. Their members
+    can use the SPI and I2C buses through piebus.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Thu, 26 Nov 2026 12:15:18 +0000
+
 base-files (9) blueberry-pie-os; urgency=medium
 
   * The group gpio has gid 98, and the group pwm has gid 94. Their members
