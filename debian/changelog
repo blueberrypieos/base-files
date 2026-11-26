@@ -1,3 +1,10 @@
+base-files (9) blueberry-pie-os; urgency=medium
+
+  * The group gpio has gid 98, and the group pwm has gid 94. Their members
+    can use the GPIO and PWM chips through piegpio and piepwm.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Thu, 26 Nov 2026 03:29:39 +0000
+
 base-files (8) blueberry-pie-os; urgency=medium
 
   * rc stores the networks of a wifi.txt on the boot partition with
