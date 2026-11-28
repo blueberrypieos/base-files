@@ -1,3 +1,10 @@
+base-files (12) blueberry-pie-os; urgency=medium
+
+  * The group video has gid 93. Its members can use the display and GPU
+    services of the graphics daemon.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Sat, 28 Nov 2026 03:14:30 +0000
+
 base-files (11) blueberry-pie-os; urgency=medium
 
   * pie-boot-partition prints the root disk's only FAT slice, not slice
