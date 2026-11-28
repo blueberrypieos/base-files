@@ -1,27 +1,59 @@
 #!/bin/sh
 # SPDX-License-Identifier: BSD-2-Clause
 # Copyright (c) 2026 The Blueberry Pie OS Authors
-#
 # usage: pie-boot-partition
-#
-# Prints the boot partition, /dev/diskNs1: slice 1 of the disk the root
-# is on. On a ZFS root, that is the disk of the root pool's first device.
-# It exits 1 if the root is on no disk slice.
+#   Prints the boot partition: the one FAT slice on the root's disk. On a
+#   ZFS root, that is the disk of the pool's first device. Exits 1 if
+#   there is no such slice, or more than one.
 
 PATH=/usr/bin:/bin:/usr/sbin:/sbin
 export PATH
 
-dev=$(df / | awk 'NR == 2 { print $1 }')
-case $dev in
-/dev/disk*s[0-9]*) ;;
-*)
-	if command -v zpool > /dev/null 2>&1 &&
-		mount | awk '$2 == "on" && $3 == "/" && $4 == "(zfs," { found = 1 } END { exit !found }'; then
-		dev=$(zpool list -H -P -v "${dev%%/*}" 2>/dev/null | awk '$1 ~ "^/dev/disk" { print $1; exit }')
+boot_slices() {
+	for slice in "$1"s[0-9]*; do
+		[ ! -b "$slice" ] || printf '%s\n' "$slice"
+	done
+}
+
+main() {
+	dev=$(df / | awk 'NR == 2 { print $1 }')
+	case $dev in
+	/dev/disk*s[0-9]*) ;;
+	*)
+		if command -v zpool > /dev/null 2>&1 &&
+			mount | awk '$2 == "on" && $3 == "/" && $4 == "(zfs," { found = 1 } END { exit !found }'; then
+			dev=$(zpool list -H -P -v "${dev%%/*}" 2>/dev/null | awk '$1 ~ "^/dev/disk" { print $1; exit }')
+		fi
+		;;
+	esac
+	leaf=${dev#/dev/disk}
+	[ "$leaf" != "$dev" ] || return 1
+	number=${leaf%%s*}
+	part=${leaf#*s}
+	[ "$part" != "$leaf" ] || return 1
+	case $number in ''|*[!0-9]*) return 1 ;; esac
+	case $part in ''|*[!0-9]*) return 1 ;; esac
+	disk=/dev/disk$number
+	found=
+	slices=$(boot_slices "$disk") || return 1
+	for slice in $slices; do
+		case $slice in
+		"$disk"s*) suffix=${slice#"$disk"s} ;;
+		*) continue ;;
+		esac
+		case $suffix in ''|*[!0-9]*) continue ;; esac
+		[ "$(fstyp "$slice" 2>/dev/null)" = msdos ] || continue
+		if [ -n "$found" ]; then
+			echo "pie-boot-partition: $found and $slice are both FAT" >&2
+			return 1
+		fi
+		found=$slice
+	done
+	if [ -z "$found" ]; then
+		echo "pie-boot-partition: no FAT slice on $disk" >&2
+		return 1
 	fi
-	;;
-esac
-case $dev in
-/dev/disk*s[0-9]*) echo "${dev%s*}s1" ;;
-*) exit 1 ;;
-esac
+	printf '%s\n' "$found"
+}
+
+main

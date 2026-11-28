@@ -1,3 +1,12 @@
+base-files (11) blueberry-pie-os; urgency=medium
+
+  * pie-boot-partition prints the root disk's only FAT slice, not slice
+    1, so a loader slice may come before it. With no FAT slice, or more
+    than one, it prints none and says why, and rc imports nothing from
+    the boot partition.
+
+ -- Maxwell <maxwell@blueberrypieos.com>  Thu, 26 Nov 2026 18:38:39 +0000
+
 base-files (10) blueberry-pie-os; urgency=medium
 
   * The group spi has gid 95, and the group i2c has gid 96. Their members
